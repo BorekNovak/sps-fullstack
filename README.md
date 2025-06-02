@@ -1,4 +1,4 @@
-# Jméno Příjmení
+# Bořek Novák
 ---
 ## Zvolené rozšíření
 - Popisek

@@ -1,0 +1,25 @@
+{
+  "name": "package.json",
+  "version": "1.0.0",
+  "description": "Parking place",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "seed": "node database/seed.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BorekNovak/sps-fullstack.git"
+  },
+  "author": "Bořek Novák",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/BorekNovak/sps-fullstack/issues"
+  },
+  "homepage": "https://github.com/BorekNovak/sps-fullstack#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "sqlite3": "^5.1.7"
+  }
+}
