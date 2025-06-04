@@ -1,73 +1,85 @@
 <!DOCTYPE html>
 <html lang="cs">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Todo List</title>
+    <title>Správa parkovacích míst v garáži</title>
 </head>
-
 <body>
-    <h1>Todo List</h1>
+    <h1>Správa parkovacích míst v garáži</h1>
     <section>
-        <h2>Přidat nový úkol</h2>
-        <form id="todo-form">
-            <div> <label for="name">Název úkolu:</label>
-                <input type="text" id="name" name="name" required>
+        <h2>Přidat parkovací místo</h2>
+        <form id="parking-form">
+            <div>
+                <label for="cislo_mista">Číslo místa:</label>
+                <input type="text" id="cislo_mista" name="cislo_mista" required>
             </div>
-            <div> <label for="description">Popis:</label>
-                <textarea id="description" name="description"></textarea>
+            <div>
+                <label for="obsazeno">Stav místa:</label>
+                <select id="obsazeno" name="obsazeno">
+                    <option value="free">Volné</option>
+                    <option value="occupied">Obsazené</option>
+                    <option value="reserved">Rezervované</option>
+                </select>
             </div>
-            <div> <button type="submit">Přidat úkol</button>
+            <div>
+                <button type="submit">Přidat místo</button>
             </div>
         </form>
     </section>
     <section>
-        <h2>Seznam úkolů</h2>
-        <ul id="todo-list"> <!-- Zde se budou zobrazovat úkoly -->
+        <h2>Seznam parkovacích míst</h2>
+        <ul id="parking-list">
+            <!-- Zde se budou zobrazovat parkovací místa -->
         </ul>
     </section>
     <script>
-        document.addEventListener('DOMContentLoaded', fetchTodos);
+        document.addEventListener('DOMContentLoaded', fetchParkingSpots);
 
-        document.getElementById('todo-form').addEventListener('submit', async (e) => {
+        document.getElementById('parking-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const name = document.getElementById('name').value;
-            const description = document.getElementById('description').value;
+            const cislo_mista = document.getElementById('cislo_mista').value;
+            const obsazeno = document.getElementById('obsazeno').value;
             try {
-                const response = await fetch('/api/items', {
+                const response = await fetch('http://localhost:3000/api/misto', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, description })
+                    body: JSON.stringify({ cislo_mista, obsazeno })
                 });
                 if (response.ok) {
-                    document.getElementById('todo-form').reset();
-                    fetchTodos();
+                    document.getElementById('parking-form').reset();
+                    fetchParkingSpots();
                 } else {
-                    alert('Chyba při přidávání úkolu');
+                    const err = await response.json();
+                    alert('Chyba při přidávání parkovacího místa: ' + (err.error || 'Neznámá chyba'));
                 }
             } catch (error) {
                 console.error('Chyba:', error);
             }
         });
 
-        async function fetchTodos() {
+        async function fetchParkingSpots() {
             try {
-                const response = await fetch('/api/items');
-                const todos = await response.json();
-                const todoList = document.getElementById('todo-list');
-                todoList.innerHTML = '';
-                todos.forEach(todo => {
+                const response = await fetch('http://localhost:3000/api/misto');
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    const text = await response.text();
+                    alert('Chyba: Server nevrací data ve formátu JSON.\n\nOdpověď serveru:\n' + text + '\n\nZkontrolujte, že backend vrací JSON a hlavičku Content-Type: application/json.');
+                    throw new Error('Server nevrací JSON: ' + text);
+                }
+                const spots = await response.json();
+                const parkingList = document.getElementById('parking-list');
+                parkingList.innerHTML = '';
+                spots.forEach(spot => {
                     const li = document.createElement('li');
-                    li.innerHTML = `<strong>${todo.name}</strong>: ${todo.description || ''}`;
-                    todoList.appendChild(li);
+                    li.innerHTML = `<strong>Místo ${cislo_mista}</strong> – Stav: ${obsazeno}`;
+                    parkingList.appendChild(li);
                 });
             } catch (error) {
-                console.error('Chyba při načítání úkolů:', error);
+                console.error('Chyba při načítání míst:', error);
+                // alert(error); // uživatel už dostal alert výše, zde není třeba znovu
             }
         }
     </script>
-
 </body>
-
 </html>
