@@ -33,12 +33,21 @@ router.get('/misto/:id', (req, res) => {
   });
 });
 
-// Úprava parkovacího místa (např. změna statusu)
-router.put('/misto/:id', (req, res) => {
-  const { number, status } = req.body;
+// Získání detailu konkrétního místa podle cislo_mista
+router.get('/misto/detail/:cislo_mista', (req, res) => {
+  db.get('SELECT * FROM misto WHERE cislo_mista = ?', [req.params.cislo_mista], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Místo nenalezeno' });
+    res.json(row);
+  });
+});
+
+// Úprava parkovacího místa (např. změna statusu) - OPRAVENO na správné názvy sloupců
+router.put('/misto/:cislo_mista', (req, res) => {
+  const { obsazeno } = req.body;
   db.run(
-    'UPDATE misto SET number = ?, status = ? WHERE id = ?',
-    [number, status, req.params.id],
+    'UPDATE misto SET obsazeno = ? WHERE cislo_mista = ?',
+    [obsazeno, req.params.cislo_mista],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Místo nenalezeno' });
@@ -47,9 +56,9 @@ router.put('/misto/:id', (req, res) => {
   );
 });
 
-// Smazání parkovacího místa
-router.delete('/misto/:id', (req, res) => {
-  db.run('DELETE FROM misto WHERE id = ?', [req.params.id], function (err) {
+// Smazání parkovacího místa podle cislo_mista (ne podle id)
+router.delete('/misto/:cislo_mista', (req, res) => {
+  db.run('DELETE FROM misto WHERE cislo_mista = ?', [req.params.cislo_mista], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     if (this.changes === 0) return res.status(404).json({ error: 'Místo nenalezeno' });
     res.json({ message: 'Místo smazáno' });

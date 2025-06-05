@@ -28,6 +28,26 @@
         </form>
     </section>
     <section>
+        <h2>Získat detail parkovacího místa</h2>
+        <form id="detail-form">
+            <input type="text" id="detail-cislo" name="detail-cislo" placeholder="Číslo místa" required>
+            <button type="submit">Zobrazit detail</button>
+        </form>
+        <div id="detail-result"></div>
+    </section>
+    <section>
+        <h2>Upravit stav parkovacího místa</h2>
+        <form id="update-form">
+            <input type="text" id="update-cislo" name="update-cislo" placeholder="Číslo místa" required>
+            <select id="update-obsazeno" name="update-obsazeno">
+                <option value="free">Volné</option>
+                <option value="occupied">Obsazené</option>
+                <option value="reserved">Rezervované</option>
+            </select>
+            <button type="submit">Upravit stav</button>
+        </form>
+    </section>
+    <section>
         <h2>Seznam parkovacích míst</h2>
         <ul id="parking-list">
             <!-- Zde se budou zobrazovat parkovací místa -->
@@ -58,6 +78,46 @@
             }
         });
 
+        document.getElementById('detail-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const cislo = document.getElementById('detail-cislo').value;
+            const resultDiv = document.getElementById('detail-result');
+            resultDiv.textContent = '';
+            try {
+                const response = await fetch(`http://localhost:3000/api/misto/detail/${encodeURIComponent(cislo)}`);
+                if (response.ok) {
+                    const spot = await response.json();
+                    resultDiv.textContent = `Místo ${spot.cislo_mista} – Stav: ${spot.obsazeno}`;
+                } else {
+                    const err = await response.json();
+                    resultDiv.textContent = 'Chyba: ' + (err.error || 'Neznámá chyba');
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Chyba: ' + error;
+            }
+        });
+
+        document.getElementById('update-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const cislo = document.getElementById('update-cislo').value;
+            const obsazeno = document.getElementById('update-obsazeno').value;
+            try {
+                const response = await fetch(`http://localhost:3000/api/misto/${encodeURIComponent(cislo)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ obsazeno })
+                });
+                if (response.ok) {
+                    fetchParkingSpots();
+                } else {
+                    const err = await response.json();
+                    alert('Chyba při úpravě místa: ' + (err.error || 'Neznámá chyba'));
+                }
+            } catch (error) {
+                alert('Chyba při úpravě místa: ' + error);
+            }
+        });
+
         async function fetchParkingSpots() {
             try {
                 const response = await fetch('http://localhost:3000/api/misto');
@@ -72,7 +132,29 @@
                 parkingList.innerHTML = '';
                 spots.forEach(spot => {
                     const li = document.createElement('li');
-                    li.innerHTML = `<strong>Místo ${cislo_mista}</strong> – Stav: ${obsazeno}`;
+                    li.innerHTML = `<strong>Místo ${spot.cislo_mista}</strong> – Stav: ${spot.obsazeno} `;
+                    const btn = document.createElement('button');
+                    btn.textContent = 'Smazat';
+                    btn.onclick = async () => {
+                        if (confirm(`Opravdu chcete smazat místo ${spot.cislo_mista}?`)) {
+                            try {
+                                const response = await fetch(`http://localhost:3000/api/misto/${encodeURIComponent(spot.cislo_mista)}`, {
+                                    method: 'DELETE'
+                                });
+                                if (response.ok) {
+                                    fetchParkingSpots();
+                                } else {
+                                    const text = await response.text();
+                                    alert('Chyba při mazání místa: ' + text);
+                                    console.error('Chyba při mazání místa:', text);
+                                }
+                            } catch (error) {
+                                alert('Chyba při mazání místa: ' + error);
+                                console.error('Chyba při mazání místa:', error);
+                            }
+                        }
+                    };
+                    li.appendChild(btn);
                     parkingList.appendChild(li);
                 });
             } catch (error) {
