@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rezervace parkovacích míst</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f4f6fa;
+            margin: 0;
+            padding: 0;
+        }
+        .top-bar {
+            background: #1976d2;
+            padding: 16px 0;
+            text-align: center;
+        }
+        .top-bar a {
+            background: #fff;
+            color: #1976d2;
+            text-decoration: none;
+            padding: 10px 28px;
+            border-radius: 24px;
+            font-weight: bold;
+            font-size: 1.1em;
+            box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+            transition: background 0.2s, color 0.2s;
+        }
+        .top-bar a:hover {
+            background: #1976d2;
+            color: #fff;
+        }
+        h1 {
+            color: #1976d2;
+            text-align: center;
+            margin-top: 24px;
+        }
+        section {
+            background: #fff;
+            margin: 24px auto;
+            padding: 24px 32px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+            max-width: 520px;
+        }
+        label {
+            display: block;
+            margin-bottom: 4px;
+            color: #2d3e50;
+        }
+        input[type="text"], input[type="number"], input[type="email"], input[type="tel"], select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #cfd8dc;
+            border-radius: 4px;
+            font-size: 1em;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 4px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #125ea9;
+        }
+        #rezervace-list {
+            list-style: none;
+            padding: 0;
+        }
+        #rezervace-list li {
+            background: #f0f4f8;
+            margin-bottom: 10px;
+            padding: 12px 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        #rezervace-list .actions {
+            display: flex;
+            gap: 8px;
+        }
+        #rezervace-list button {
+            background: #e53935;
+        }
+        #rezervace-list button.edit {
+            background: #ffa000;
+            color: #fff;
+        }
+        #rezervace-list button.edit:hover {
+            background: #ff6f00;
+        }
+        #rezervace-list button:hover {
+            background: #b71c1c;
+        }
+        @media (max-width: 600px) {
+            section {
+                padding: 16px 8px;
+                max-width: 98vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <a href="index.html">Zpět na správu míst</a>
+    </div>
+    <h1>Rezervace parkovacích míst</h1>
+    <section>
+        <h2>Přidat / Upravit rezervaci</h2>
+        <form id="rezervace-form">
+            <input type="hidden" id="rezervace-id" name="rezervace-id">
+            <div>
+                <label for="misto_id">ID místa</label>
+                <input type="number" id="misto_id" name="misto_id" required>
+            </div>
+            <div>
+                <label for="typ_vozidla">Typ auta</label>
+                <input type="text" id="typ_vozidla" name="typ_vozidla" required>
+            </div>
+            <div>
+                <label for="spz">SPZ</label>
+                <input type="text" id="spz" name="spz" required>
+            </div>
+            <div>
+                <label for="telefon">Telefonní číslo</label>
+                <input type="tel" id="telefon" name="telefon" required pattern="[0-9]{9,}">
+            </div>
+            <div>
+                <label for="email">E-mail</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div>
+                <button type="submit" id="submit-btn">Přidat rezervaci</button>
+                <button type="button" id="cancel-btn" style="display:none;">Zrušit úpravu</button>
+            </div>
+        </form>
+    </section>
+    <section>
+        <h2>Seznam rezervací</h2>
+        <ul id="rezervace-list">
+            <!-- Rezervace se načtou sem -->
+        </ul>
+    </section>
+    <script>
+        document.addEventListener('DOMContentLoaded', fetchRezervace);
+
+        const form = document.getElementById('rezervace-form');
+        const rezervaceIdInput = document.getElementById('rezervace-id');
+        const submitBtn = document.getElementById('submit-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = rezervaceIdInput.value;
+            const misto_id = document.getElementById('misto_id').value;
+            const typ_vozidla = document.getElementById('typ_vozidla').value;
+            const spz = document.getElementById('spz').value;
+            const telefon = document.getElementById('telefon').value;
+            const email = document.getElementById('email').value;
+
+            // Nejprve vytvoř nebo najdi vozidlo
+            let vozidlo_id;
+            try {
+                let vozidloRes = await fetch('/api/vozidlo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ spz, typ_vozidla })
+                });
+                let vozidloData = await vozidloRes.json();
+                if (vozidloRes.ok) {
+                    vozidlo_id = vozidloData.id;
+                } else if (vozidloData.id) {
+                    vozidlo_id = vozidloData.id;
+                } else {
+                    alert('Chyba při ukládání vozidla: ' + (vozidloData.error || 'Neznámá chyba'));
+                    return;
+                }
+            } catch (err) {
+                alert('Chyba při ukládání vozidla: ' + err);
+                return;
+            }
+
+            // Přidání nebo úprava rezervace
+            const rezervacePayload = {
+                vozidlo_id,
+                misto_id,
+                telefon,
+                email
+            };
+
+            try {
+                let response;
+                if (id) {
+                    response = await fetch(`/api/rezervace/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(rezervacePayload)
+                    });
+                } else {
+                    response = await fetch('/api/rezervace', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(rezervacePayload)
+                    });
+                }
+                if (response.ok) {
+                    form.reset();
+                    rezervaceIdInput.value = '';
+                    submitBtn.textContent = 'Přidat rezervaci';
+                    cancelBtn.style.display = 'none';
+                    fetchRezervace();
+                    // --- Po vytvoření rezervace aktualizuj stav místa na "reserved" přes API ---
+                    await fetch(`/api/misto/${encodeURIComponent(misto_id)}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ obsazeno: 'reserved' })
+                    });
+                } else {
+                    const err = await response.json();
+                    alert('Chyba při ukládání rezervace: ' + (err.error || 'Neznámá chyba'));
+                }
+            } catch (err) {
+                alert('Chyba při ukládání rezervace: ' + err);
+            }
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            form.reset();
+            rezervaceIdInput.value = '';
+            submitBtn.textContent = 'Přidat rezervaci';
+            cancelBtn.style.display = 'none';
+        });
+
+        async function fetchRezervace() {
+            try {
+                const response = await fetch('/api/rezervace');
+                const contentType = response.headers.get("content-type");
+                if (!response.ok) {
+                    const text = await response.text();
+                    alert('Chyba: Server vrátil chybu.\n\nOdpověď serveru:\n' + text);
+                    return;
+                }
+                if (!contentType || !contentType.includes("application/json")) {
+                    const text = await response.text();
+                    alert('Chyba: Server nevrací data ve formátu JSON.\n\nOdpověď serveru:\n' + text + '\n\nZkontrolujte, že backend vrací JSON a endpoint /api/rezervace existuje.');
+                    return;
+                }
+                const rezervace = await response.json();
+                const list = document.getElementById('rezervace-list');
+                list.innerHTML = '';
+                rezervace.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div>
+                            <strong>Místo ID:</strong> ${item.misto_id} |
+                            <strong>Typ auta:</strong> ${item.typ_vozidla} |
+                            <strong>SPZ:</strong> ${item.spz} |
+                            <strong>Telefon:</strong> ${item.telefon || ''} |
+                            <strong>Email:</strong> ${item.email || ''}
+                        </div>
+                        <div class="actions">
+                            <button class="edit" onclick="editRezervace(${item.id}, ${item.misto_id}, '${item.typ_vozidla}', '${item.spz}', '${item.telefon || ''}', '${item.email || ''}')">Upravit</button>
+                            <button onclick="deleteRezervace(${item.id})">Smazat</button>
+                        </div>
+                    `;
+                    list.appendChild(li);
+                });
+            } catch (err) {
+                alert('Chyba při načítání rezervací: ' + err + '\n\nZkontrolujte, že server běží a endpoint /api/rezervace je dostupný.\nPokud používáte jiný port nebo adresu, uprav fetch na správnou URL.');
+            }
+        }
+
+        window.editRezervace = function(id, misto_id, typ_vozidla, spz, telefon, email) {
+            rezervaceIdInput.value = id;
+            document.getElementById('misto_id').value = misto_id;
+            document.getElementById('typ_vozidla').value = typ_vozidla;
+            document.getElementById('spz').value = spz;
+            document.getElementById('telefon').value = telefon;
+            document.getElementById('email').value = email;
+            submitBtn.textContent = 'Upravit rezervaci';
+            cancelBtn.style.display = '';
+        };
+
+        window.deleteRezervace = async function(id) {
+            if (confirm('Opravdu chcete smazat tuto rezervaci?')) {
+                try {
+                    const response = await fetch(`/api/rezervace/${id}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        fetchRezervace();
+                    } else {
+                        const err = await response.json();
+                        alert('Chyba při mazání rezervace: ' + (err.error || 'Neznámá chyba'));
+                    }
+                } catch (err) {
+                    alert('Chyba při mazání rezervace: ' + err);
+                }
+            }
+        };
+    </script>
+</body>
+</html>

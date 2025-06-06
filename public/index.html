@@ -4,8 +4,112 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Správa parkovacích míst v garáži</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f4f6fa;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            background: #2d3e50;
+            color: #fff;
+            margin: 0 0 24px 0;
+            padding: 24px 0;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+        section {
+            background: #fff;
+            margin: 24px auto;
+            padding: 24px 32px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+            max-width: 500px;
+        }
+        form > div, form > input, form > select, form > button {
+            margin-bottom: 12px;
+        }
+        label {
+            display: block;
+            margin-bottom: 4px;
+            color: #2d3e50;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #cfd8dc;
+            border-radius: 4px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        button {
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 4px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #125ea9;
+        }
+        #parking-list {
+            list-style: none;
+            padding: 0;
+        }
+        #parking-list li {
+            background: #f0f4f8;
+            margin-bottom: 10px;
+            padding: 12px 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        #parking-list strong {
+            color: #1976d2;
+        }
+        #parking-list button {
+            background: #e53935;
+            margin-left: 16px;
+        }
+        #parking-list button:hover {
+            background: #b71c1c;
+        }
+        #detail-result {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #1976d2;
+        }
+        @media (max-width: 600px) {
+            section {
+                padding: 16px 8px;
+                max-width: 98vw;
+            }
+        }
+    </style>
 </head>
 <body>
+    <div style="background:#1976d2; padding:16px 0; text-align:center;">
+        <a href="rezervace.html" style="
+            background:#fff;
+            color:#1976d2;
+            text-decoration:none;
+            padding:10px 28px;
+            border-radius:24px;
+            font-weight:bold;
+            font-size:1.1em;
+            box-shadow:0 2px 8px rgba(44,62,80,0.08);
+            transition:background 0.2s, color 0.2s;
+            display:inline-block;
+        " onmouseover="this.style.background='#1976d2';this.style.color='#fff';"
+          onmouseout="this.style.background='#fff';this.style.color='#1976d2';">
+            Rezervace míst
+        </a>
+    </div>
     <h1>Správa parkovacích míst v garáži</h1>
     <section>
         <h2>Přidat parkovací místo</h2>
@@ -19,7 +123,6 @@
                 <select id="obsazeno" name="obsazeno">
                     <option value="free">Volné</option>
                     <option value="occupied">Obsazené</option>
-                    <option value="reserved">Rezervované</option>
                 </select>
             </div>
             <div>
@@ -42,7 +145,6 @@
             <select id="update-obsazeno" name="update-obsazeno">
                 <option value="free">Volné</option>
                 <option value="occupied">Obsazené</option>
-                <option value="reserved">Rezervované</option>
             </select>
             <button type="submit">Upravit stav</button>
         </form>
@@ -55,6 +157,53 @@
     </section>
     <script>
         document.addEventListener('DOMContentLoaded', fetchParkingSpots);
+
+        async function fetchParkingSpots() {
+            try {
+                const spotsRes = await fetch('http://localhost:3000/api/misto');
+                const spotsContentType = spotsRes.headers.get("content-type");
+                if (!spotsContentType || !spotsContentType.includes("application/json")) {
+                    const text = await spotsRes.text();
+                    alert('Chyba: Server nevrací data ve formátu JSON.\n\nOdpověď serveru:\n' + text + '\n\nZkontrolujte, že backend vrací JSON a hlavičku Content-Type: application/json.');
+                    throw new Error('Server nevrací JSON: ' + text);
+                }
+                const spots = await spotsRes.json();
+
+                const parkingList = document.getElementById('parking-list');
+                parkingList.innerHTML = '';
+                spots.forEach(spot => {
+                    // Zobraz pouze "Volné" nebo "Obsazené" podle obsazeno, ignoruj rezervace
+                    let stav = spot.obsazeno === 'occupied' ? 'occupied' : 'free';
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>Místo ${spot.cislo_mista}</strong> – Stav: ${stav === 'occupied' ? '<span style="color:#e53935">Obsazené</span>' : 'Volné'}`;
+                    const btn = document.createElement('button');
+                    btn.textContent = 'Smazat';
+                    btn.onclick = async () => {
+                        if (confirm(`Opravdu chcete smazat místo ${spot.cislo_mista}?`)) {
+                            try {
+                                const response = await fetch(`http://localhost:3000/api/misto/${encodeURIComponent(spot.cislo_mista)}`, {
+                                    method: 'DELETE'
+                                });
+                                if (response.ok) {
+                                    fetchParkingSpots();
+                                } else {
+                                    const text = await response.text();
+                                    alert('Chyba při mazání místa: ' + text);
+                                    console.error('Chyba při mazání místa:', text);
+                                }
+                            } catch (error) {
+                                alert('Chyba při mazání místa: ' + error);
+                                console.error('Chyba při mazání místa:', error);
+                            }
+                        }
+                    };
+                    li.appendChild(btn);
+                    parkingList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Chyba při načítání míst:', error);
+            }
+        }
 
         document.getElementById('parking-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -117,51 +266,6 @@
                 alert('Chyba při úpravě místa: ' + error);
             }
         });
-
-        async function fetchParkingSpots() {
-            try {
-                const response = await fetch('http://localhost:3000/api/misto');
-                const contentType = response.headers.get("content-type");
-                if (!contentType || !contentType.includes("application/json")) {
-                    const text = await response.text();
-                    alert('Chyba: Server nevrací data ve formátu JSON.\n\nOdpověď serveru:\n' + text + '\n\nZkontrolujte, že backend vrací JSON a hlavičku Content-Type: application/json.');
-                    throw new Error('Server nevrací JSON: ' + text);
-                }
-                const spots = await response.json();
-                const parkingList = document.getElementById('parking-list');
-                parkingList.innerHTML = '';
-                spots.forEach(spot => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<strong>Místo ${spot.cislo_mista}</strong> – Stav: ${spot.obsazeno} `;
-                    const btn = document.createElement('button');
-                    btn.textContent = 'Smazat';
-                    btn.onclick = async () => {
-                        if (confirm(`Opravdu chcete smazat místo ${spot.cislo_mista}?`)) {
-                            try {
-                                const response = await fetch(`http://localhost:3000/api/misto/${encodeURIComponent(spot.cislo_mista)}`, {
-                                    method: 'DELETE'
-                                });
-                                if (response.ok) {
-                                    fetchParkingSpots();
-                                } else {
-                                    const text = await response.text();
-                                    alert('Chyba při mazání místa: ' + text);
-                                    console.error('Chyba při mazání místa:', text);
-                                }
-                            } catch (error) {
-                                alert('Chyba při mazání místa: ' + error);
-                                console.error('Chyba při mazání místa:', error);
-                            }
-                        }
-                    };
-                    li.appendChild(btn);
-                    parkingList.appendChild(li);
-                });
-            } catch (error) {
-                console.error('Chyba při načítání míst:', error);
-                // alert(error); // uživatel už dostal alert výše, zde není třeba znovu
-            }
-        }
     </script>
 </body>
 </html>
