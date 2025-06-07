@@ -125,7 +125,7 @@ router.post('/vozidlo', (req, res) => {
   });
 });
 
-// Přidání nové rezervace (už neoznačuje místo jako rezervované)
+// Přidání nové rezervace a zároveň označení místa jako rezervované
 router.post('/rezervace', (req, res) => {
   const { vozidlo_id, misto_id, telefon, email } = req.body;
   if (!vozidlo_id || !misto_id) {
@@ -136,7 +136,15 @@ router.post('/rezervace', (req, res) => {
     [vozidlo_id, misto_id, telefon || null, email || null],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ id: this.lastID });
+      // Po úspěšném vložení rezervace nastav místo jako rezervované
+      db.run(
+        'UPDATE misto SET obsazeno = ? WHERE id = ?',
+        ['reserved', misto_id],
+        function (err2) {
+          if (err2) return res.status(500).json({ error: err2.message });
+          res.status(201).json({ id: this.lastID });
+        }
+      );
     }
   );
 });
